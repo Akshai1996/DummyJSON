@@ -1,0 +1,28 @@
+version: 0.2
+
+phases:
+  install:
+    commands:
+      - echo Installing dependencies...
+      - npm install -g yarn --force
+  pre_build:
+    commands:
+      - echo Logging in to Amazon ECR...
+      - aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 008971661427.dkr.ecr.us-east-1.amazonaws.com
+      - IMAGE_NAME=node-demo-generator
+      - IMAGE_TAG=$CODEBUILD_RESOLVED_SOURCE_VERSION
+  build:
+    commands:
+      - echo Building Docker image...
+      - docker build -t $IMAGE_NAME:$IMAGE_TAG .
+  post_build:
+    commands:
+      - echo Tagging Docker image...
+      - docker tag $IMAGE_NAME:$IMAGE_TAG 008971661427.dkr.ecr.us-east-1.amazonaws.com/$IMAGE_NAME:$IMAGE_TAG
+      - echo Pushing Docker image to ECR...
+      - docker push 008971661427.dkr.ecr.us-east-1.amazonaws.com/$IMAGE_NAME:$IMAGE_TAG
+      - echo Writing imagedefinitions.json file...
+      - printf '[{"name":"%s","imageUri":"%s"}]' "$IMAGE_NAME" "008971661427.dkr.ecr.us-east-1.amazonaws.com/$IMAGE_NAME:$IMAGE_TAG" > imagedefinitions.json
+artifacts:
+  files:
+    - imagedefinitions.json
